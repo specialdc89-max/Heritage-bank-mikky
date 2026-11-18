@@ -1975,25 +1975,29 @@
             }
         };
 
-                        async function fetchUserTransactions(uid, accountNumber) {
+                                async function fetchUserTransactions(uid, accountNumber) {
             try {
                 userTransactions = [];
 
-                // 1. Fetch transactions sent OUT by this user (Debits / Transfers sent / Withdrawals)
+                if (!uid) return;
+
+                // 1. Fetch transactions where the current user is the sender (debits, withdrawals, transfers sent)
                 const senderSnapshot = await db.collection('transactions')
                     .where('senderUid', '==', uid)
                     .get();
+                
                 senderSnapshot.forEach(doc => {
                     userTransactions.push({ ...doc.data(), isDebit: true });
                 });
 
-                // 2. Fetch transactions sent TO this user securely by matching their specific User ID
+                // 2. Fetch transactions where the current user is explicitly the recipient UID
                 const recipientSnapshot = await db.collection('transactions')
                     .where('recipientUid', '==', uid)
                     .get();
+                
                 recipientSnapshot.forEach(doc => {
                     const data = doc.data();
-                    // Ensure we don't duplicate if they sent money to themselves
+                    // Prevent duplicate entries if sending to self
                     if (data.senderUid !== uid) {
                         userTransactions.push({ 
                             ...data, 
@@ -2007,6 +2011,7 @@
                 userTransactions.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
             } catch (err) {
                 console.error("Error fetching transactions: ", err);
+                userTransactions = [];
             }
         }
 
